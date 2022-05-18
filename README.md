@@ -2,6 +2,27 @@
 
 A python based cli to inspect climate data metadata using xarray
 
+## Using the command line interface.
+
+The python package is supposed to be used as a command line interface.
+Meta data of various datasets can be inspected. To inspect the meta data use the
+`metadata-inspector` command:
+
+```console
+metadata-inspector --help
+usage: metadata-inspector [-h] [--html] [--version] input [input ...]
+
+Inspect meta data of a weather/climate datasets
+
+positional arguments:
+  input          Input files that will be processed
+
+options:
+  -h, --help     show this help message and exit
+  --html         Create html representation of the dataset. (default: False)
+  --version, -V  show program's version number and exit
+```
+
 ## Getting started
 
 To make it easy for you to get started with GitLab, here's a list of recommended next steps.
