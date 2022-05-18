@@ -1,0 +1,12 @@
+# Python Virtual Env
+venv/
+logs/
+
+# Python build distribution
+dist/
+*.egg-info/
+build/
+
+# Python Cache
+main_directory/__pycache__
+main_directory/test/__pycache__
