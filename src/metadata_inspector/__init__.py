@@ -1,12 +1,30 @@
 """Metadata inspector."""
 from __future__ import annotations
 import argparse
+from functools import partial
 from pathlib import Path
 
 from hurry.filesize import alternative, size
 import xarray as xr
 
 from ._version import __version__
+
+
+def _summarize_datavar(name: str, var: xr.DataArray, col_width: int) -> str:
+
+    out = [xr.core.formatting.summarize_variable(name, var.variable, col_width)]
+    if var.attrs:
+        n_spaces = 0
+        for k in out[0]:
+            if k == " ":
+                n_spaces += 1
+            else:
+                break
+        out += [
+            n_spaces * " " + line
+            for line in xr.core.formatting.attrs_repr(var.attrs).split("\n")
+        ]
+    return "\n".join(out)
 
 
 def parse_args() -> tuple[list[Path], bool]:
@@ -38,58 +56,39 @@ def parse_args() -> tuple[list[Path], bool]:
     return args.input, args.html
 
 
-def _data_vars_repr(dset: xr.Dataset) -> str:
+def _get_files(input_: list[Path]) -> list[str]:
+    """Get all files from given input"""
 
-    out = []
-    for data_var in dset.data_vars:
-        var_repr = dset[data_var].__repr__().split("\n")[1:]
-        if var_repr:
-            var_1 = var_repr[0].split(",")
-            var_1[0] = f"<Variable: pr"
-            var_1 = ",".join(var_1)
-            var_repr[0] = var_1
-            var_repr_n = "\n\t".join(var_repr)
-            out.append(var_repr_n)
-    return "\n".join(out)
-
-
-def dataset_repr(dset: xr.Dataset) -> str:
-    """Create a representation of a xarray dataset.
-
-    Parameters
-    ----------
-    ds: xr.Dataset
-        xarray Dataset
-
-    Returns
-    -------
-    str: String representation of the xarray dataset.
-
-    """
-    summary = ["{}".format(type(dset).__name__)]
-
-    col_width = xr.core.formatting._calculate_col_width(
-        xr.core.formatting._get_col_items(dset.variables)
+    files: list[str] = []
+    extensions: tuple[str, ...] = (
+        ".nc",
+        ".nc4",
+        ".grb",
+        ".grib",
+        ".zarr",
+        ".h5",
+        ".hdf5",
     )
+    for inp_file in input_:
+        inp = inp_file.expanduser().absolute()
+        if inp.is_dir() and inp.exists():
+            files += [
+                str(inp_file)
+                for inp_file in inp.rglob("*")
+                if inp_file.suffix in extensions
+            ]
+        elif inp.is_file() and inp.exists():
+            files.append(str(inp))
+        elif inp.parent.exists() and inp.parent.is_dir():
+            files += [
+                str(inp_file)
+                for inp_file in inp.parent.rglob(inp.name)
+                if inp_file.suffix in extensions
+            ]
+    return sorted(files)
 
-    dims_start = xr.core.formatting.pretty_print("Dimensions:", col_width)
-    summary.append("{}({})".format(dims_start, xr.core.formatting.dim_summary(dset)))
 
-    if dset.coords:
-        summary.append(xr.core.formatting.coords_repr(dset.coords, col_width=col_width))
-
-    unindexed_dims_str = xr.core.formatting.unindexed_dims_repr(dset.dims, dset.coords)
-    if unindexed_dims_str:
-        summary.append(unindexed_dims_str)
-
-    summary.append(_data_vars_repr(dset))
-
-    if dset.attrs:
-        summary.append(xr.core.formatting.attrs_repr(dset.attrs))
-    return "\n".join(summary)
-
-
-def main(input_files: list[Path], html: bool = False) -> None:
+def main(input_files: list[Path], html: bool = False) -> str:
     """Print the representation of a dataset.
 
     Parameters
@@ -110,8 +109,11 @@ def main(input_files: list[Path], html: bool = False) -> None:
         concat_dim="time",
         chunks={"time": -1},
     )
+    files_to_open = _get_files(input_files)
+    if not files_to_open:
+        return "No files found"
     try:
-        dset = xr.open_mfdataset(input_files, **kwargs)
+        dset = xr.open_mfdataset(files_to_open, **kwargs)
     except Exception as error:
         error_header = (
             "No data found, file(s) might be corrupted. See err. message below:"
@@ -122,12 +124,21 @@ def main(input_files: list[Path], html: bool = False) -> None:
             msg = f"<h2>{error_header}</h2><br><p>{error_msg}</p>"
         else:
             msg = f"{error_header}\n{error_msg}"
-        print(msg)
-        return
+        return msg
     fsize = size(dset.nbytes, system=alternative)
     if html:
         out_str = xr.core.formatting_html.dataset_repr(dset)
     else:
+        xr.core.options.OPTIONS["display_expand_data_vars"] = True
+        xr.core.options.OPTIONS["display_expand_attrs"] = True
+        xr.core.options.OPTIONS["display_expand_data"] = True
+        xr.core.options.OPTIONS["display_max_rows"] = 100
+        xr.core.formatting.data_vars_repr = partial(
+            xr.core.formatting._mapping_repr,
+            title="Data variables",
+            summarizer=_summarize_datavar,
+            expand_option_name="display_expand_data_vars",
+        )
         out_str = xr.core.formatting.dataset_repr(dset)
     replace_str = (
         ("xarray.Dataset", f"Dataset (byte-size: {fsize})"),
@@ -141,13 +152,13 @@ def main(input_files: list[Path], html: bool = False) -> None:
     for entry, replace in replace_str:
         out_str = out_str.replace(entry, replace)
 
-    print(out_str)
+    return out_str
 
 
 def cli() -> None:
     """Command line argument inteface."""
 
-    main(*parse_args())
+    print(main(*parse_args()))
 
 
 if __name__ == "__main__":
