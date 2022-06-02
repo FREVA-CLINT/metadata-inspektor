@@ -100,15 +100,7 @@ def main(input_files: list[Path], html: bool = False) -> str:
         If true a representation suitable for html is displayed.
     """
 
-    kwargs = dict(
-        parallel=True,
-        coords="minimal",
-        data_vars="minimal",
-        compat="override",
-        combine="nested",
-        concat_dim="time",
-        chunks={"time": -1},
-    )
+    kwargs = dict(parallel=True, combine="by_coords")
     files_to_open = _get_files(input_files)
     if not files_to_open:
         return "No files found"
