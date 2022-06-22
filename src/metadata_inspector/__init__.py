@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from functools import partial
 from pathlib import Path
+import warnings
 
 from hurry.filesize import alternative, size
 import xarray as xr
@@ -100,7 +101,7 @@ def main(input_files: list[Path], html: bool = False) -> str:
         If true a representation suitable for html is displayed.
     """
 
-    kwargs = dict(parallel=True, combine="by_coords", concat_dim="time",)
+    kwargs = dict(parallel=True, combine="by_coords",)
     files_to_open = _get_files(input_files)
     if not files_to_open:
         return "No files found"
@@ -149,8 +150,9 @@ def main(input_files: list[Path], html: bool = False) -> str:
 
 def cli() -> None:
     """Command line argument inteface."""
-
-    print(main(*parse_args()))
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        print(main(*parse_args()))
 
 
 if __name__ == "__main__":
