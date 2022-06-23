@@ -145,7 +145,7 @@ def main(input_files: list[Path], html: bool = False) -> str:
     for entry, replace in replace_str:
         out_str = out_str.replace(entry, replace)
 
-    return out_str
+    return out_str.encode("utf-8")
 
 
 def cli() -> None:
