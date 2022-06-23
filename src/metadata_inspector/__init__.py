@@ -152,7 +152,10 @@ def cli() -> None:
     """Command line argument inteface."""
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
-        print(main(*parse_args()))
+        try:
+            print(main(*parse_args()))
+        except Exception as error:
+            print(f"Error: {error}")
 
 
 if __name__ == "__main__":
