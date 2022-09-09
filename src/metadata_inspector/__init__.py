@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from subprocess import run, PIPE, SubprocessError
 import warnings
+import sys
+from typing import TextIO
 
 from cftime import num2date
 from dask import array as dask_array
@@ -181,7 +183,7 @@ def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
     return xr.merge(dsets)
 
 
-def main(input_files: list[Path], html: bool = False) -> str:
+def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
     """Print the representation of a dataset.
 
     Parameters
@@ -193,22 +195,23 @@ def main(input_files: list[Path], html: bool = False) -> str:
         If true a representation suitable for html is displayed.
     """
 
-    files_fs, files_hsm = _get_files(input_files)
-    if not files_fs and not files_hsm:
-        return "No files found"
+    kwargs = dict(parallel=True, combine="by_coords",)
+    files_to_open = _get_files(input_files)
+    if not files_to_open:
+        return "No files found", sys.stderr
     try:
         dset = _open_datasets(files_fs, files_hsm)
     except Exception as error:
         error_header = (
             "No data found, file(s) might be corrupted. See err. message below:"
         )
-        error_msg = error.__str__()
+        error_msg = str(error)
         if html:
             error_msg = error_msg.replace("\n", "<br>")
             msg = f"<h2>{error_header}</h2><br><p>{error_msg}</p>"
         else:
             msg = f"{error_header}\n{error_msg}"
-        return msg
+        return msg, sys.stderr
     fsize = size(dset.nbytes, system=alternative)
     if html:
         out_str = xr.core.formatting_html.dataset_repr(dset)
@@ -236,7 +239,7 @@ def main(input_files: list[Path], html: bool = False) -> str:
     for entry, replace in replace_str:
         out_str = out_str.replace(entry, replace)
 
-    return out_str.encode("utf-8", "replace").decode("latin-1", "replace")
+    return out_str.encode("utf-8").decode("latin-1", "replace"), sys.stdout
 
 
 def cli() -> None:
@@ -244,9 +247,10 @@ def cli() -> None:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
         try:
-            print(main(*parse_args()))
+            msg, text_io = main(*parse_args())
         except Exception as error:
-            print(f"Error: {error}")
+            msg, text_io = f"Error: {error}"
+    print(msg, file=text_io, flush=True)
 
 
 if __name__ == "__main__":
