@@ -2,9 +2,7 @@
 from __future__ import annotations
 import argparse
 from functools import partial
-import os
 from pathlib import Path
-from subprocess import run, PIPE, SubprocessError
 import warnings
 import sys
 from typing import TextIO
@@ -17,50 +15,7 @@ import xarray as xr
 import yaml
 
 from ._version import __version__
-
-SLK_PATH = "/sw/spack-levante/slk-3.3.21-5xnsgp/bin"
-JDK_PATH = "/sw/spack-levante/openjdk-17.0.0_35-k5o6dr/bin"
-JAVA_HOME = "/sw/spack-levante/openjdk-17.0.0_35-k5o6dr"
-
-
-def get_slk_metadata(input_path: str) -> str:
-    """Extract dataset metdata from path in the hsm.
-
-    Parameters
-    ----------
-    input_path: Path
-        The hsm path the metdata is extracted from
-
-
-    Returns
-    -------
-    str: string representation of the metdata
-    """
-    env = os.environ.copy()
-    env["PATH"] = f"{SLK_PATH}:{env['PATH']}"
-    env["PATH"] = f"{JDK_PATH}:{env['PATH']}"
-    env["JAVA_HOME"] = "{JAVA_HOME}"
-    command = ["slk_helpers", "metadata", input_path]
-    try:
-        res = run(command, env=env, check=True, stdout=PIPE, stderr=PIPE)
-    except SubprocessError as error:
-        warnings.warn(f"Error: could not get metdata: {error}")
-        return ""
-    lines: list[str] = []
-    # This needs to be done because the output of the command is only nearly
-    # yaml. That is the ":" for the first keys are missing:
-    # For example:
-    # document
-    #      Version: foo
-    # netcdf
-    #     id: bar
-    #     var_name: tas
-    # Since yaml needs could not handle this we have to add the ':' to the
-    # keys manually.
-    for line in [o.strip() for o in res.stdout.decode().split("\n")]:
-        if line.strip().lower().startswith("keywords:"):
-            lines.append(line)
-    return "\n".join(lines)
+from ._slk import get_slk_metadata, login
 
 
 def _summarize_datavar(name: str, var: xr.DataArray, col_width: int) -> str:
@@ -178,6 +133,7 @@ def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
     if files_fs:
         dsets.append(xr.open_mfdataset(files_fs, **kwargs))
     if files_hsm:
+        login()
         for inp_file in files_hsm:
             dsets.append(dataset_from_hsm(inp_file))
     return xr.merge(dsets)
