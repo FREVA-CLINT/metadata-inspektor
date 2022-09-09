@@ -2,13 +2,63 @@
 from __future__ import annotations
 import argparse
 from functools import partial
+import os
 from pathlib import Path
+from subprocess import run, PIPE, SubprocessError
 import warnings
 
+from cftime import num2date
+from dask import array as dask_array
 from hurry.filesize import alternative, size
+import numpy as np
 import xarray as xr
+import yaml
 
 from ._version import __version__
+
+SLK_PATH = "/sw/spack-levante/slk-3.3.21-5xnsgp/bin"
+JDK_PATH = "/sw/spack-levante/openjdk-17.0.0_35-k5o6dr/bin"
+JAVA_HOME = "/sw/spack-levante/openjdk-17.0.0_35-k5o6dr"
+
+
+def get_slk_metadata(input_path: str) -> str:
+    """Extract dataset metdata from path in the hsm.
+
+    Parameters
+    ----------
+    input_path: Path
+        The hsm path the metdata is extracted from
+
+
+    Returns
+    -------
+    str: string representation of the metdata
+    """
+    env = os.environ.copy()
+    env["PATH"] = f"{SLK_PATH}:{env['PATH']}"
+    env["PATH"] = f"{JDK_PATH}:{env['PATH']}"
+    env["JAVA_HOME"] = "{JAVA_HOME}"
+    command = ["slk_helpers", "metadata", input_path]
+    try:
+        res = run(command, env=env, check=True, stdout=PIPE, stderr=PIPE)
+    except SubprocessError as error:
+        warnings.warn(f"Error: could not get metdata: {error}")
+        return ""
+    lines: list[str] = []
+    # This needs to be done because the output of the command is only nearly
+    # yaml. That is the ":" for the first keys are missing:
+    # For example:
+    # document
+    #      Version: foo
+    # netcdf
+    #     id: bar
+    #     var_name: tas
+    # Since yaml needs could not handle this we have to add the ':' to the
+    # keys manually.
+    for line in [o.strip() for o in res.stdout.decode().split("\n")]:
+        if line.strip().lower().startswith("keywords:"):
+            lines.append(line)
+    return "\n".join(lines)
 
 
 def _summarize_datavar(name: str, var: xr.DataArray, col_width: int) -> str:
@@ -57,10 +107,35 @@ def parse_args() -> tuple[list[Path], bool]:
     return args.input, args.html
 
 
-def _get_files(input_: list[Path]) -> list[str]:
+def dataset_from_hsm(input_file: str) -> xr.Dataset:
+    """Create a dataset view from attributes."""
+
+    attrs: dict[str, dict[str, str]] = (
+        yaml.safe_load(get_slk_metadata(input_file)) or {}
+    ).get("Keywords", {})
+
+    dset = xr.Dataset({}, attrs=attrs.pop("global"))
+    for dim in attrs.pop("dims"):
+        size = int(attrs[dim].pop("size"))
+        start, end = float(attrs[dim].pop("start")), float(attrs[dim].pop("end"))
+        vec = np.linspace(start, end, size)
+        if dim == "time":
+            vec = num2date(vec, attrs[dim]["units"], attrs[dim]["calendar"])
+        dset[dim] = xr.DataArray(vec, name=dim, dims=(dim,), attrs=attrs[dim])
+    for data_var in attrs.pop("data_vars"):
+        dims = attrs[data_var].pop("dims")
+        sizes = [dset[d].size for d in dims]
+        dset[data_var] = xr.DataArray(
+            dask_array.empty(sizes), name=data_var, dims=dims, attrs=attrs[data_var]
+        )
+    return dset
+
+
+def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
     """Get all files from given input"""
 
-    files: list[str] = []
+    files_fs: list[str] = []
+    files_archive: list[str] = []
     extensions: tuple[str, ...] = (
         ".nc",
         ".nc4",
@@ -73,20 +148,37 @@ def _get_files(input_: list[Path]) -> list[str]:
     for inp_file in input_:
         inp = inp_file.expanduser().absolute()
         if inp.is_dir() and inp.exists():
-            files += [
+            files_fs += [
                 str(inp_file)
                 for inp_file in inp.rglob("*")
                 if inp_file.suffix in extensions
             ]
         elif inp.is_file() and inp.exists():
-            files.append(str(inp))
+            files_fs.append(str(inp))
         elif inp.parent.exists() and inp.parent.is_dir():
-            files += [
+            files_fs += [
                 str(inp_file)
                 for inp_file in inp.parent.rglob(inp.name)
                 if inp_file.suffix in extensions
             ]
-    return sorted(files)
+        elif inp.parts[1] == "arch":
+            files_archive.append(str(inp))
+    return sorted(files_fs), sorted(files_archive)
+
+
+def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
+
+    kwargs = dict(
+        parallel=True,
+        combine="by_coords",
+    )
+    dsets: list[xr.Dataset] = []
+    if files_fs:
+        dsets.append(xr.open_mfdataset(files_fs, **kwargs))
+    if files_hsm:
+        for inp_file in files_hsm:
+            dsets.append(dataset_from_hsm(inp_file))
+    return xr.merge(dsets)
 
 
 def main(input_files: list[Path], html: bool = False) -> str:
@@ -101,15 +193,11 @@ def main(input_files: list[Path], html: bool = False) -> str:
         If true a representation suitable for html is displayed.
     """
 
-    kwargs = dict(
-        parallel=True,
-        combine="by_coords",
-    )
-    files_to_open = _get_files(input_files)
-    if not files_to_open:
+    files_fs, files_hsm = _get_files(input_files)
+    if not files_fs and not files_hsm:
         return "No files found"
     try:
-        dset = xr.open_mfdataset(files_to_open, **kwargs)
+        dset = _open_datasets(files_fs, files_hsm)
     except Exception as error:
         error_header = (
             "No data found, file(s) might be corrupted. See err. message below:"
