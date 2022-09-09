@@ -195,9 +195,8 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
         If true a representation suitable for html is displayed.
     """
 
-    kwargs = dict(parallel=True, combine="by_coords",)
-    files_to_open = _get_files(input_files)
-    if not files_to_open:
+    files_fs, files_hsm = _get_files(input_files)
+    if not files_fs and not files_hsm:
         return "No files found", sys.stderr
     try:
         dset = _open_datasets(files_fs, files_hsm)
