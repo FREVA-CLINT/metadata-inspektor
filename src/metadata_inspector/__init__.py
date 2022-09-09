@@ -128,6 +128,7 @@ def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
     kwargs = dict(
         parallel=True,
         combine="by_coords",
+        use_cftime=True,
     )
     dsets: list[xr.Dataset] = []
     if files_fs:
@@ -164,9 +165,11 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
         if html:
             error_msg = error_msg.replace("\n", "<br>")
             msg = f"<h2>{error_header}</h2><br><p>{error_msg}</p>"
+            return msg, sys.stout
+
         else:
             msg = f"{error_header}\n{error_msg}"
-        return msg, sys.stderr
+            return msg, sys.stderr
     fsize = size(dset.nbytes, system=alternative)
     if html:
         out_str = xr.core.formatting_html.dataset_repr(dset)
