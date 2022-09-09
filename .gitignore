@@ -10,3 +10,4 @@ build/
 # Python Cache
 main_directory/__pycache__
 main_directory/test/__pycache__
+__pycache__
