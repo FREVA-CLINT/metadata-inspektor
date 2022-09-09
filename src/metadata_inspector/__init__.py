@@ -164,8 +164,11 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
         error_msg = str(error)
         if html:
             error_msg = error_msg.replace("\n", "<br>")
-            msg = f"<h2>{error_header}</h2><br><p>{error_msg}</p>"
-            return msg, sys.stout
+            msg = (
+                "<p><b>Error:</b>Could not open dataset for more details "
+                "do not use the --hmtl flag.</p>"
+            )
+            return msg, sys.stdout
 
         else:
             msg = f"{error_header}\n{error_msg}"
@@ -207,7 +210,7 @@ def cli() -> None:
         try:
             msg, text_io = main(*parse_args())
         except Exception as error:
-            msg, text_io = f"Error: {error}"
+            msg, text_io = f"Error: {error}", sys.stderr
     print(msg, file=text_io, flush=True)
 
 
