@@ -101,7 +101,10 @@ def main(input_files: list[Path], html: bool = False) -> str:
         If true a representation suitable for html is displayed.
     """
 
-    kwargs = dict(parallel=True, combine="by_coords",)
+    kwargs = dict(
+        parallel=True,
+        combine="by_coords",
+    )
     files_to_open = _get_files(input_files)
     if not files_to_open:
         return "No files found"
@@ -145,14 +148,17 @@ def main(input_files: list[Path], html: bool = False) -> str:
     for entry, replace in replace_str:
         out_str = out_str.replace(entry, replace)
 
-    return out_str
+    return out_str.encode("utf-8", "replace").decode("latin-1", "replace")
 
 
 def cli() -> None:
     """Command line argument inteface."""
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
-        print(main(*parse_args()))
+        try:
+            print(main(*parse_args()))
+        except Exception as error:
+            print(f"Error: {error}")
 
 
 if __name__ == "__main__":
