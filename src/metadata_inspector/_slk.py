@@ -22,6 +22,16 @@ JDK_PATH = "/sw/spack-levante/openjdk-17.0.0_35-k5o6dr/bin"
 JAVA_HOME = "/sw/spack-levante/openjdk-17.0.0_35-k5o6dr"
 
 
+def get_env() -> dict[str, str]:
+    """Prepare the environment variables for slk."""
+
+    env = os.environ.copy()
+    env["PATH"] = f"{SLK_PATH}:{env['PATH']}"
+    env["PATH"] = f"{JDK_PATH}:{env['PATH']}"
+    env["JAVA_HOME"] = "{JAVA_HOME}"
+    return env
+
+
 def get_slk_metadata(input_path: str) -> str:
     """Extract dataset metdata from path in the hsm.
 
@@ -35,13 +45,9 @@ def get_slk_metadata(input_path: str) -> str:
     -------
     str: string representation of the metdata
     """
-    env = os.environ.copy()
-    env["PATH"] = f"{SLK_PATH}:{env['PATH']}"
-    env["PATH"] = f"{JDK_PATH}:{env['PATH']}"
-    env["JAVA_HOME"] = "{JAVA_HOME}"
     command = ["slk_helpers", "metadata", input_path]
     try:
-        res = run(command, env=env, check=True, stdout=PIPE, stderr=PIPE)
+        res = run(command, env=get_env(), check=True, stdout=PIPE, stderr=PIPE)
     except SubprocessError as error:
         warnings.warn(f"Error: could not get metdata: {error}")
         return ""
@@ -106,5 +112,11 @@ def login() -> None:
     diff = (exp_date - now).total_seconds()
     if passwd:
         passwd = base64.b64decode(passwd.encode()).decode()
+        _login_via_request(passwd)
     elif diff <= 0:
-        run(["slk", "login"], shell=True, check=True)
+        print("Your session has expired, login to slk")
+        run(["slk", "login"], shell=False, check=True, env=get_env())
+
+
+if __name__ == "__main__":
+    login()
