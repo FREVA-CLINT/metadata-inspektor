@@ -9,8 +9,8 @@ lint:
     tags:
         - docker, specific
     before_script:
+        - mamba install -y make netcdf4 zarr pynio
         - mamba run python3 -m pip install -e .[tests]
-        - mamba install -y make
         - mkdir .mypy_cache
     script:
         - mamba run make lint
@@ -21,7 +21,7 @@ tests:
     tags:
         - docker, specific
     before_script:
+        - mamba install -y make netcdf4 zarr pynio
         - mamba run python3 -m pip install -e .[tests]
-        - mamba install -y make
     script:
         - make test
