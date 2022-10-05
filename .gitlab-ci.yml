@@ -1,0 +1,27 @@
+stages:
+    - tests
+    - docs
+
+lint:
+    image: condaforge/mambaforge:latest
+    stage: tests
+    needs: []
+    tags:
+        - docker, specific
+    before_script:
+        - mamba install -y make netcdf4 zarr pynio
+        - mamba run python3 -m pip install -e .[tests]
+        - mkdir .mypy_cache
+    script:
+        - mamba run make lint
+tests:
+    image: condaforge/mambaforge
+    stage: tests
+    needs: []
+    tags:
+        - docker, specific
+    before_script:
+        - mamba install -y make netcdf4 zarr pynio
+        - mamba run python3 -m pip install -e .[tests]
+    script:
+        - make test

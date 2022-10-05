@@ -21,6 +21,8 @@ SLK_PATH = "/sw/spack-levante/slk-3.3.21-5xnsgp/bin"
 JDK_PATH = "/sw/spack-levante/openjdk-17.0.0_35-k5o6dr/bin"
 JAVA_HOME = "/sw/spack-levante/openjdk-17.0.0_35-k5o6dr"
 
+SESSION_PATH = Path("~").expanduser() / ".slk" / "config.json"
+
 
 def get_env() -> dict[str, str]:
     """Prepare the environment variables for slk."""
@@ -83,11 +85,13 @@ def get_expiration_date() -> datetime:
 
 def _login_via_request(passwd: str) -> None:
 
-    session_path = Path("~").expanduser() / ".slk" / "config.json"
-    session_path.parent.mkdir(exist_ok=True, parents=True)
     data = {
         "data": {
-            "attributes": {"domain": "ldap", "name": getuser(), "password": passwd},
+            "attributes": {
+                "domain": "ldap",
+                "name": getuser(),
+                "password": passwd,
+            },
             "type": "authentication",
         }
     }
@@ -95,13 +99,18 @@ def _login_via_request(passwd: str) -> None:
     fmt = "%a %b %d %H:%M:%S %Z %Y"
     exp_date = (datetime.now() + timedelta(days=20)).astimezone().strftime(fmt)
     url = "https://archive.dkrz.de/api/v2/authentication"
-    res = requests.post(url, data=json.dumps(data), headers=headers, verify=False)
-    key = res.json().get("data", {}).get("attributes", {}).get("session_key", "")
+    res = requests.post(
+        url, data=json.dumps(data), headers=headers, verify=False
+    )
+    key = (
+        res.json().get("data", {}).get("attributes", {}).get("session_key", "")
+    )
     if key:
         sec = {"user": getuser(), "sessionKey": key, "expireDate": exp_date}
-        with session_path.open("w") as f_obj:
+        SESSION_PATH.parent.mkdir(exist_ok=True, parents=True)
+        with SESSION_PATH.open("w") as f_obj:
             json.dump(sec, f_obj)
-        session_path.chmod(0o600)
+        SESSION_PATH.chmod(0o600)
 
 
 def login() -> None:
