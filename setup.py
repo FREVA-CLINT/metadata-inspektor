@@ -42,6 +42,7 @@ setup(
         "dask",
         "hurry.filesize",
         "h5netcdf",
+        "netCDF4",
         "zarr",
         "xarray",
     ],
