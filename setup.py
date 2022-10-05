@@ -39,7 +39,7 @@ setup(
     },
     install_requires=[
         "cftime",
-        "dask",
+        "dask[diagnostics]",
         "hurry.filesize",
         "h5netcdf",
         "netCDF4",
