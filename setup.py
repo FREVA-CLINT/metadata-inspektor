@@ -54,7 +54,9 @@ setup(
     ],
     packages=find_packages("src"),
     package_dir={"": "src"},
-    entry_points={"console_scripts": ["metadata-inspector = metadata_inspector:cli"]},
+    entry_points={
+        "console_scripts": ["metadata-inspector = metadata_inspector:cli"]
+    },
     install_requires=[
         "cftime",
         "dask[diagnostics]",
@@ -84,13 +86,4 @@ setup(
         ],
     },
     python_requires=">=3.8",
-    classifiers=[
-        "Development Status :: 3 - Alpha",
-        "Environment :: Console",
-        "Intended Audience :: Developers",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: BSD License",
-        "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 3",
-    ],
 )
