@@ -5,7 +5,7 @@ from functools import partial
 from pathlib import Path
 import warnings
 import sys
-from typing import TextIO
+from typing import Optional, TextIO
 
 from cftime import num2date
 from dask import array as dask_array
@@ -20,7 +20,9 @@ from ._slk import get_slk_metadata, login
 
 def _summarize_datavar(name: str, var: xr.DataArray, col_width: int) -> str:
 
-    out = [xr.core.formatting.summarize_variable(name, var.variable, col_width)]
+    out = [
+        xr.core.formatting.summarize_variable(name, var.variable, col_width)
+    ]
     if var.attrs:
         n_spaces = 0
         for k in out[0]:
@@ -35,13 +37,16 @@ def _summarize_datavar(name: str, var: xr.DataArray, col_width: int) -> str:
     return "\n".join(out)
 
 
-def parse_args() -> tuple[list[Path], bool]:
+def parse_args(args: Optional[list[str]] = None) -> tuple[list[Path], bool]:
     """Construct command line argument parser."""
 
     argp = argparse.ArgumentParser
     app = argp(
         prog="metadata-inspector",
-        description="""Inspect meta data of a weather/climate datasets""",
+        description=(
+            "Inspect meta data of a weather/climate datasets "
+            "with help of xarray"
+        ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     app.add_argument(
@@ -52,7 +57,9 @@ def parse_args() -> tuple[list[Path], bool]:
         help="Input files that will be processed",
     )
     app.add_argument(
-        "--html", action="store_true", help="Create html representation of the dataset."
+        "--html",
+        action="store_true",
+        help="Create html representation of the dataset.",
     )
     app.add_argument(
         "--version",
@@ -60,8 +67,8 @@ def parse_args() -> tuple[list[Path], bool]:
         action="version",
         version="%(prog)s {version}".format(version=__version__),
     )
-    args = app.parse_args()
-    return args.input, args.html
+    parsed_args = app.parse_args(args)
+    return parsed_args.input, parsed_args.html
 
 
 def dataset_from_hsm(input_file: str) -> xr.Dataset:
@@ -74,7 +81,9 @@ def dataset_from_hsm(input_file: str) -> xr.Dataset:
     dset = xr.Dataset({}, attrs=attrs.pop("global"))
     for dim in attrs.pop("dims"):
         size = int(attrs[dim].pop("size"))
-        start, end = float(attrs[dim].pop("start")), float(attrs[dim].pop("end"))
+        start, end = float(attrs[dim].pop("start")), float(
+            attrs[dim].pop("end")
+        )
         vec = np.linspace(start, end, size)
         if dim == "time":
             vec = num2date(vec, attrs[dim]["units"], attrs[dim]["calendar"])
@@ -83,7 +92,10 @@ def dataset_from_hsm(input_file: str) -> xr.Dataset:
         dims = attrs[data_var].pop("dims")
         sizes = [dset[d].size for d in dims]
         dset[data_var] = xr.DataArray(
-            dask_array.empty(sizes), name=data_var, dims=dims, attrs=attrs[data_var]
+            dask_array.empty(sizes),
+            name=data_var,
+            dims=dims,
+            attrs=attrs[data_var],
         )
     return dset
 
@@ -98,6 +110,8 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
         ".nc4",
         ".grb",
         ".grib",
+        ".grib2",
+        ".grb2",
         ".zarr",
         ".h5",
         ".hdf5",
@@ -108,7 +122,7 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
             files_fs += [
                 str(inp_file)
                 for inp_file in inp.rglob("*")
-                if inp_file.suffix in extensions
+                if inp_file.suffix.lower() in extensions
             ]
         elif inp.is_file() and inp.exists():
             files_fs.append(str(inp))
@@ -159,14 +173,15 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
         dset = _open_datasets(files_fs, files_hsm)
     except Exception as error:
         error_header = (
-            "No data found, file(s) might be corrupted. See err. message below:"
+            "No data found, file(s) might be corrupted. "
+            "See err. message below:"
         )
         error_msg = str(error)
         if html:
             error_msg = error_msg.replace("\n", "<br>")
             msg = (
                 "<p><b>Error:</b>Could not open dataset for more details "
-                "do not use the --hmtl flag.</p>"
+                "do not use the --html flag.</p>"
             )
             return msg, sys.stdout
 
@@ -190,7 +205,10 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
         out_str = xr.core.formatting.dataset_repr(dset)
     replace_str = (
         ("xarray.Dataset", f"Dataset (byte-size: {fsize})"),
-        ("<svg class='icon xr-icon-file-text2'>", "<i class='fa fa-file-text-o'>"),
+        (
+            "<svg class='icon xr-icon-file-text2'>",
+            "<i class='fa fa-file-text-o'>",
+        ),
         ("<svg class='icon xr-icon-database'>", "<i class='fa fa-database'>"),
         ("</use></svg>", "</use></i>"),
         ("numpy.", ""),
@@ -200,19 +218,15 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
     for entry, replace in replace_str:
         out_str = out_str.replace(entry, replace)
 
-    return out_str.encode("utf-8").decode("latin-1", "replace"), sys.stdout
+    return out_str, sys.stdout
 
 
-def cli() -> None:
+def cli(args: Optional[list[str]] = None) -> None:
     """Command line argument inteface."""
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
         try:
-            msg, text_io = main(*parse_args())
+            msg, text_io = main(*parse_args(args))
         except Exception as error:
             msg, text_io = f"Error: {error}", sys.stderr
     print(msg, file=text_io, flush=True)
-
-
-if __name__ == "__main__":
-    cli()

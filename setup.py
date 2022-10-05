@@ -34,12 +34,36 @@ setup(
     license="GPLv3",
     packages=find_packages("src"),
     package_dir={"": "src"},
-    entry_points={"console_scripts": ["metadata-inspector = metadata_inspector:cli"]},
+    entry_points={
+        "console_scripts": ["metadata-inspector = metadata_inspector:cli"]
+    },
     install_requires=[
+        "cftime",
         "dask",
         "hurry.filesize",
+        "h5netcdf",
+        "zarr",
         "xarray",
     ],
+    extras_require={
+        "tests": [
+            "black",
+            "pytest",
+            "pandas",
+            "mock",
+            "numpy",
+            "requests-mock",
+            "pytest-env",
+            "pytest-cov",
+            "testpath",
+            "flake8",
+            "mypy",
+            "types-mock",
+            "types-PyYAML",
+            "types-requests",
+            "types-setuptools",
+        ],
+    },
     python_requires=">=3.8",
     classifiers=[
         "Development Status :: 3 - Alpha",
