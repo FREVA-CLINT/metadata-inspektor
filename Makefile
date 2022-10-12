@@ -7,7 +7,11 @@ install:
 	python3 -m pip install -e .[tests]
 
 test:
-	python3 -m pytest -vv
+	python3 -m pytest -vv \
+	    --cov=$(PWD)/src/metadata_inspector --cov-report=html:coverage_report \
+	    --junitxml report.xml --cov-report xml \
+		$(PWD)/src/metadata_inspector/tests
+	python3 -m coverage report
 
 lint:
 	mypy --install-types --non-interactive
