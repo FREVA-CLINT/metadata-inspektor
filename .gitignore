@@ -8,6 +8,11 @@ dist/
 build/
 
 # Python Cache
-main_directory/__pycache__
-main_directory/test/__pycache__
+src/metadata_inspector/__pycache__
+src/metadata_inspector/tests/__pycache__
 __pycache__
+
+# Coverage reports
+.coverage
+coverage.xml
+report.xml

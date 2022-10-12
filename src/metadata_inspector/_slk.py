@@ -50,9 +50,11 @@ def get_slk_metadata(input_path: str) -> str:
     command = ["slk_helpers", "metadata", input_path]
     try:
         res = run(command, env=get_env(), check=True, stdout=PIPE, stderr=PIPE)
-    except SubprocessError as error:
-        warnings.warn(f"Error: could not get metdata: {error}")
-        return ""
+    except SubprocessError as error:  # pragma: no cover
+        warnings.warn(
+            f"Error: could not get metdata: {error}"
+        )  # pragma: no cover
+        return ""  # pragma: no cover
     lines: list[str] = []
     # This needs to be done because the output of the command is only nearly
     # yaml. That is the ":" for the first keys are missing:
@@ -78,8 +80,8 @@ def get_expiration_date() -> datetime:
     try:
         with session_path.open() as f_obj:
             date = json.load(f_obj).get("expireDate", now)
-    except FileNotFoundError:
-        date = now
+    except FileNotFoundError:  # pragma: no cover
+        date = now  # pragma: no cover
     return datetime.strptime(date, fmt)
 
 
@@ -125,7 +127,3 @@ def login() -> None:
     elif diff <= 0:
         print("Your session has expired, login to slk")
         run(["slk", "login"], shell=False, check=True, env=get_env())
-
-
-if __name__ == "__main__":
-    login()
