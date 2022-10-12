@@ -60,7 +60,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        conda run -n test python3 -m pip install -e .[tests] --constraint .github/dependabot/constraints.txt
+        conda run -n test python3 -m pip install -e .[tests] #--constraint .github/dependabot/constraints.txt
 
     - name: Test with pytest
       run: |
