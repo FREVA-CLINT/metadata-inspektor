@@ -139,14 +139,13 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
 
 def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
 
-    kwargs = dict(
-        parallel=True,
-        combine="by_coords",
-        use_cftime=True,
-    )
     dsets: list[xr.Dataset] = []
     if files_fs:
-        dsets.append(xr.open_mfdataset(files_fs, **kwargs))
+        dsets.append(
+            xr.open_mfdataset(
+                files_fs, parallel=False, combine="by_coords", use_cftime=True
+            )
+        )
     if files_hsm:
         login()
         for inp_file in files_hsm:
