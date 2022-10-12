@@ -30,7 +30,7 @@ jobs:
 
     - name: Linting
       run: |
-        conda -n test make lint
+        conda run -n test make lint
 
   tests:
 
@@ -56,7 +56,7 @@ jobs:
 
     - name: Creating conda environment for ${{ matrix.python-version }}
       run: |
-        conda create -n test -y python=${{matrix.python-version}} netcdf4 zarr pynio make
+        conda create -n test -y python=${{matrix.python-version}} netcdf4 zarr make
 
     - name: Install dependencies
       run: |
