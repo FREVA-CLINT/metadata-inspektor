@@ -62,7 +62,6 @@ setup(
         "h5netcdf",
         "netCDF4",
         "requests",
-        "zarr",
         "xarray",
     ],
     extras_require={
