@@ -89,7 +89,6 @@ meta_data = {
 
 class SubProcess:
     def __init__(self, stdout: list[str]) -> None:
-
         self._stdout = "\n".join(stdout)
 
     @property
@@ -106,7 +105,6 @@ class RequestMock:
         out: dict[str, dict[str, str]] | None = None,
         **kwargs: Any,
     ) -> None:
-
         self.url = url
         self.data = data
         self.headers = headers
