@@ -19,7 +19,6 @@ from ._slk import get_slk_metadata, login
 
 
 def _summarize_datavar(name: str, var: xr.DataArray, col_width: int) -> str:
-
     out = [
         xr.core.formatting.summarize_variable(name, var.variable, col_width)
     ]
@@ -138,7 +137,6 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
 
 
 def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
-
     dsets: list[xr.Dataset] = []
     if files_fs:
         dsets.append(

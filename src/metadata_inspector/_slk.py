@@ -86,7 +86,6 @@ def get_expiration_date() -> datetime:
 
 
 def _login_via_request(passwd: str) -> None:
-
     data = {
         "data": {
             "attributes": {
