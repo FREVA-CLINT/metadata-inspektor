@@ -1,3 +1,3 @@
 """Version of the package."""
 
-__version__ = "2022.11.01"
+__version__ = "2023.03.07"

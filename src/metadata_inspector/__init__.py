@@ -132,7 +132,7 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
                 for inp_file in inp.parent.rglob(inp.name)
                 if inp_file.suffix in extensions
             ]
-        elif inp.parts[1] == "arch":
+        elif inp.parts[1] == "arch" or str(inp).startswith("slk:"):
             files_archive.append(str(inp))
     return sorted(files_fs), sorted(files_archive)
 
