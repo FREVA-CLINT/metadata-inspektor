@@ -19,6 +19,7 @@ from ._slk import get_slk_metadata, login
 
 
 def _summarize_datavar(name: str, var: xr.DataArray, col_width: int) -> str:
+
     out = [
         xr.core.formatting.summarize_variable(name, var.variable, col_width)
     ]
@@ -116,8 +117,13 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
         ".hdf5",
     )
     for inp_file in input_:
-        inp = inp_file.expanduser().absolute()
-        if inp.is_dir() and inp.exists():
+        schema, _, path = str(inp_file).partition(":")
+        if not path:
+            path = schema
+        inp = Path(path).expanduser().absolute()
+        if schema in ("hsm", "slk"):
+            files_archive.append(str(inp))
+        elif inp.is_dir() and inp.exists():
             files_fs += [
                 str(inp_file)
                 for inp_file in inp.rglob("*")
@@ -131,17 +137,21 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
                 for inp_file in inp.parent.rglob(inp.name)
                 if inp_file.suffix in extensions
             ]
-        elif inp.parts[1] == "arch" or str(inp).startswith("slk:"):
+        elif inp.parts[1] == "arch":
             files_archive.append(str(inp))
     return sorted(files_fs), sorted(files_archive)
 
 
 def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
+
     dsets: list[xr.Dataset] = []
     if files_fs:
         dsets.append(
             xr.open_mfdataset(
-                files_fs, parallel=False, combine="by_coords", use_cftime=True
+                files_fs,
+                parallel=True,
+                combine="by_coords",
+                use_cftime=True,
             )
         )
     if files_hsm:
