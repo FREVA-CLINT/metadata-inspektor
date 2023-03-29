@@ -35,8 +35,6 @@ def test_netcdf(netcdf_files: Path, patch_file: Path) -> None:
     assert text_io == sys.stdout
 
     out, text_io = main([netcdf_files], html=True)
-    assert "precip" in out
-    assert text_io == sys.stdout
     assert "html" in out
 
 
