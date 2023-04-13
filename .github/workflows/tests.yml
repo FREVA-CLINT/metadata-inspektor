@@ -67,22 +67,19 @@ jobs:
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
-
-    - name: Gather dependabot metadata
-      id: matadata
-      if: ${{ github.actor == 'dependabot[bot]' }}
-      uses: dependabot/fetch-metadata@v1
-      with:
-        github-token: "${{ secrets.GITHUB_TOKEN }}"
-
-    - name: Approve dependabots PR
-      if: ${{ github.actor == 'dependabot[bot]' }}
-      run: gh pr review --approve "${{github.event.pull_request.html_url}}"
-      env:
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-
-    - name: Merge dependabots PR
-      if: ${{ github.actor == 'dependabot[bot]' }}
-      run: gh pr merge --auto --merge "${{github.event.pull_request.html_url}}"
-      env:
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+  dependabot:
+    runs-on: ubuntu-latest
+    needs: [tests, lint]
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v1.1.1
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Enable auto-merge for Dependabot PRs
+        if: ${{contains(steps.metadata.outputs.dependency-names, 'my-dependency') && steps.metadata.outputs.update-type == 'version-update:semver-patch'}}
+        run: gh pr merge --auto --merge "$PR_URL"
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
