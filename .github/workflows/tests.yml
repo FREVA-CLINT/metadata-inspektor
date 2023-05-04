@@ -68,18 +68,24 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
   dependabot:
-    runs-on: ubuntu-latest
+    name: Merge PR by dependabot
     needs: [tests, lint]
-    if: ${{ github.actor == 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    # Specifically check that dependabot (or another trusted party) created this pull-request, and that it has been labelled correctly.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
       - name: Dependabot metadata
         id: metadata
-        uses: dependabot/fetch-metadata@v1.1.1
+        uses: dependabot/fetch-metadata@v1
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-      - name: Enable auto-merge for Dependabot PRs
-        if: ${{contains(steps.metadata.outputs.dependency-names, 'my-dependency') && steps.metadata.outputs.update-type == 'version-update:semver-patch'}}
-        run: gh pr merge --auto --merge "$PR_URL"
+      - name: Approve dependabot's PR
+        run: gh pr review --approve "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GITHUB_TOKEN: ${{secrets.TOKEN}}
+      - name: Auto-merge for dependabot's PR
+        run: gh pr merge --merge --auto "$PR_URL"
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GITHUB_TOKEN: ${{secrets.TOKEN}}
