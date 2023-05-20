@@ -75,14 +75,17 @@ def get_slk_metadata(input_path: str) -> str:
 def get_expiration_date() -> datetime:
     """Get the expiration date of the session key."""
     session_path = Path("~").expanduser() / ".slk" / "config.json"
-    fmt = "%a %b %d %H:%M:%S %Z %Y"
-    now = datetime.now().astimezone().strftime(fmt)
-    try:
-        with session_path.open() as f_obj:
-            date = json.load(f_obj).get("expireDate", now)
-    except FileNotFoundError:  # pragma: no cover
-        date = now  # pragma: no cover
-    return datetime.strptime(date, fmt)
+    now = datetime.now()
+    for fmt in ("%a %b %d %H:%M:%S %Z %Y", "%a %b %d %H:%M:%S %Y"):
+        try:
+            with session_path.open() as f_obj:
+                date = json.load(f_obj).get("expireDate", now.strftime(fmt))
+            return datetime.strptime(date, fmt)
+        except FileNotFoundError:  # pragma: no cover
+            break  # pragma: no cover
+        except ValueError:
+            pass
+    return now
 
 
 def _login_via_request(passwd: str) -> None:
