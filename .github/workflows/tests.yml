@@ -22,7 +22,7 @@ jobs:
 
     - name: Creating conda environment for ${{ matrix.python-version }}
       run: |
-        conda create -n test -y make
+        conda create -n test -y make netcdf4 xarray
 
     - name: Install dependencies
       run: |
