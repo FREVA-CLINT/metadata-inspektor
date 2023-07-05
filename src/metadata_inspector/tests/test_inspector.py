@@ -75,9 +75,15 @@ def test_fileiter(netcdf_files: Path, patch_file: Path) -> None:
     assert out == nc_files
 
 
-def test_hsm(patch_file: Path) -> None:
+def test_hsm_with_key(patch_file: Path) -> None:
     """Test reading metadata from the hsm."""
     from metadata_inspector import main
 
     out, text_io = main([Path("/arch/foo/bar.tar")])
     assert "orog" in out
+
+
+def test_hsm_without_key(patch_file: Path) -> None:
+    from metadata_inspector import main
+
+    out, text_io = main([Path("/arch/foo/bar.nc")])

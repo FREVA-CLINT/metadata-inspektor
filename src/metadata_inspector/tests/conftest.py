@@ -15,6 +15,90 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+global_meta_data = """
+netcdf
+  Var_Long_Name: time,Longitude,Latitude,pressure,Eastward Wind
+  License: CMIP6 model data produced by CSIRO is licensed under a Creative
+  Title: ACCESS-CM2 output prepared for CMIP6
+  Var_Name: time,time_bnds,lon,lon_bnds,lat,lat_bnds,plev,plev_bnds,ua
+  Pid: hdl:21.14100/215c74d3-0509-4aca-8338-958b6c502eab
+  Experiment_Id: amip
+  Institution: CSIRO (Commonwealth Scientific and Industrial Research
+  Time_Min: 285336000000
+  Source: ACCESS-CM2 (2019):
+aerosol: UKCA-GLOMAP-mode
+atmos: MetUM-HadGEM3-GA7.1 (N96; 192 x 144 longitude/latitude;
+atmosChem: none
+land: CABLE2.5
+landIce: none
+ocean: ACCESS-OM2 (GFDL-MOM5, tripolar primarily 1deg
+ocnBgchem: none
+seaIce: CICE5.1.2 (same grid as ocean)
+  Project: CMIP6
+  Institution_Id: CSIRO-ARCCSS
+  Var_Std_Name: time,longitude,latitude,air_pressure,eastward_wind
+  Creation_Date: 2019-11-08T09:29:03Z
+  External_Description: https://furtherinfo.es-doc.org/CMIP6.CSIRO-ARCCS
+  Realm: atmos
+  Time_Max: 311558400000
+netcdf_header
+  Physics_Index: 1
+  Tracking_Id: hdl:21.14100/215c74d3-0509-4aca-8338-958b6c502eab
+  Var_Long_Name: time,Longitude,Latitude,pressure,Eastward Wind
+  Nominal_Resolution: 250 km
+  Grid: native atmosphere N96 grid (144x192 latxlon)
+  Product: model-output
+  Source_Id: ACCESS-CM2
+  Parent_Time_Units: no parent
+  Data_Specs_Version: 01.00.30
+  Experiment_Id: amip
+  Institution: CSIRO (Commonwealth Scientific and Industrial Research
+  Initialization_Index: 1
+  Lon_Max: 180.0
+  Source: ACCESS-CM2 (2019):
+aerosol: UKCA-GLOMAP-mode
+atmos: MetUM-HadGEM3-GA7.1 (N96; 192 x 144 longitude/latitude;
+atmosChem: none
+land: CABLE2.5
+landIce: none
+ocean: ACCESS-OM2 (GFDL-MOM5, tripolar primarily 1deg;
+ocnBgchem: none
+seaIce: CICE5.1.2 (same grid as ocean)
+  Parent_Variant_Label: no parent
+  Parent_Source_Id: no parent
+  Source_Type: AGCM
+  Institution_Id: CSIRO-ARCCSS
+  Table_Id: Amon
+  Level_Max: 100000.00000001001
+  Var_Std_Name: time,longitude,latitude,air_pressure,eastward_wind
+  Parent_Activity_Id: no parent
+  Forcing_Index: 1
+  Parent_Mip_Era: no parent
+  Lat_Min: 0.0
+  Realm: atmos
+  Sub_Experiment_Id: none
+  Grid_Label: gn
+  Lon_Min: 101.25
+  Experiment: AMIP
+  Title: ACCESS-CM2 output prepared for CMIP6
+  Level_Min: 100.00000001000001
+  Lat_Max: 50.0
+  Var_Name: time,time_bnds,lon,lon_bnds,lat,lat_bnds,plev,plev_bnds,ua
+  Mip_Era: CMIP6
+  Variable_Id: ua
+  Time_Min: 285336000000
+  Realization_Index: 1
+  Parent_Experiment_Id: no parent
+  Activity_Id: CMIP
+  Creation_Date: 2019-11-08T09:29:03Z
+  Frequency: mon
+  Sub_Experiment: none
+  Time_Max: 311558400000
+  Further_Info_Url: https://furtherinfo.es-doc.org/CMIP6.CSIRO-ARCCSS
+  Variant_Label: r1i1p1f1
+
+"""
+
 meta_data = {
     "global": {
         "Conventions": "CF-1.4",
@@ -88,12 +172,22 @@ meta_data = {
 
 
 class SubProcess:
-    def __init__(self, stdout: list[str]) -> None:
-        self._stdout = "\n".join(stdout)
+    def __init__(self, cmd: list[str], is_fake: bool = True) -> None:
+        if is_fake:
+            self._stdout = "\n".join(cmd).encode()
+        else:
+            res = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=False,
+            )
+            self._stdout, _ = res.communicate()
+        self._is_fake = is_fake
 
     @property
     def stdout(self) -> bytes:
-        return self._stdout.encode()
+        return self._stdout
 
 
 class RequestMock:
@@ -130,11 +224,16 @@ def run(command: list[str], **kwargs: Any) -> SubProcess:
 
     main_command, sub_cmd = command[0:2]
     if main_command.startswith("slk_helpers"):
+        suffix = Path(command[-1]).suffix
         if sub_cmd == "metadata":
-            cmd = "document\n"
-            cmd += "   Keywords: " + json.dumps(meta_data)
-            cmd += "\n   Version: ae7677769b0a757248659ddbbb83f224"
-    return SubProcess([cmd])
+            if suffix == ".tar":
+                cmd = "document\n"
+                cmd += "   Keywords: " + json.dumps(meta_data)
+                cmd += "\n   Version: ae7677769b0a757248659ddbbb83f224"
+            else:
+                cmd = global_meta_data
+            return SubProcess([cmd])
+    return SubProcess(command, is_fake=False)
 
 
 def create_data(variable_name: str, size: int) -> xr.Dataset:
@@ -169,10 +268,33 @@ def create_data(variable_name: str, size: int) -> xr.Dataset:
     ).set_coords(list(coords.keys()))
 
 
+@pytest.fixture(scope="session")
+def slk_bin() -> Generator[Path, None, None]:
+    """Create a mock folder where we can add mock slk binaries."""
+    with TemporaryDirectory() as slk_dir:
+        with TemporaryDirectory() as td:
+            module = Path(td) / "modulecmd.tcl"
+            path = f"{slk_dir}:{os.environ['PATH']}"
+            slk_path = Path(slk_dir) / "slk"
+            slk_helpers = Path(slk_dir) / "slk_helpers"
+            with module.open("w", encoding="utf-8") as tf:
+                tf.write(
+                    f"#!/bin/bash\n echo os.environ[\\'PATH\\'] = \\'{path}\\'"
+                )
+            with slk_path.open("w", encoding="utf-8") as tf:
+                tf.write("#!/bin/bash\n")
+            with slk_helpers.open("w", encoding="utf-8") as tf:
+                tf.write("#!/bin/bash\n")
+            for inp_file in (slk_path, slk_helpers, module):
+                inp_file.chmod(0o755)
+            yield module
+
+
 @pytest.fixture(scope="function")
 def patch_file(session_path: Path) -> Generator[Path, None, None]:
     req = {"data": {"attributes": {"session_key": "secret"}}}
     post = partial(RequestMock.post, out=req)
+    old_run = subprocess.run
     subprocess.run = run  # type: ignore
     env = os.environ.copy()
     env["LC_TELEPHONE"] = base64.b64encode("foo".encode()).decode()
@@ -182,6 +304,7 @@ def patch_file(session_path: Path) -> Generator[Path, None, None]:
                 with mock.patch("requests.get", RequestMock.get):
                     with mock.patch("subprocess.run", run):
                         yield session_path
+                        subprocess.run = old_run
 
 
 @pytest.fixture(scope="session")
