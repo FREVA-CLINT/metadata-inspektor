@@ -202,10 +202,9 @@ def zarr_file() -> Generator[Path, None, None]:
 
 
 @pytest.fixture(scope="session")
-def netcdf_files(
-    data: xr.Dataset,
-) -> Generator[Path, None, None]:
+def netcdf_files() -> Generator[Path, None, None]:
     """Save data with a blob to file."""
+    data = create_data("precip", 100)
 
     with TemporaryDirectory() as td:
         for time in (data.time[:2], data.time[2:]):
