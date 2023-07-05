@@ -19,9 +19,7 @@ from ._slk import get_slk_metadata, login
 
 
 def _summarize_datavar(name: str, var: xr.DataArray, col_width: int) -> str:
-    out = [
-        xr.core.formatting.summarize_variable(name, var.variable, col_width)
-    ]
+    out = [xr.core.formatting.summarize_variable(name, var.variable, col_width)]
     if var.attrs:
         n_spaces = 0
         for k in out[0]:
@@ -43,8 +41,7 @@ def parse_args(args: Optional[list[str]] = None) -> tuple[list[Path], bool]:
     app = argp(
         prog="metadata-inspector",
         description=(
-            "Inspect meta data of a weather/climate datasets "
-            "with help of xarray"
+            "Inspect meta data of a weather/climate datasets " "with help of xarray"
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
@@ -80,9 +77,7 @@ def dataset_from_hsm(input_file: str) -> xr.Dataset:
     dset = xr.Dataset({}, attrs=attrs.pop("global"))
     for dim in attrs.pop("dims"):
         size = int(attrs[dim].pop("size"))
-        start, end = float(attrs[dim].pop("start")), float(
-            attrs[dim].pop("end")
-        )
+        start, end = float(attrs[dim].pop("start")), float(attrs[dim].pop("end"))
         vec = np.linspace(start, end, size)
         if dim == "time":
             vec = num2date(vec, attrs[dim]["units"], attrs[dim]["calendar"])
@@ -111,7 +106,6 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
         ".grib",
         ".grib2",
         ".grb2",
-        ".zarr",
         ".h5",
         ".hdf5",
     )
@@ -120,8 +114,10 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
         if not path:
             path = schema
         inp = Path(path).expanduser().absolute()
-        if schema in ("hsm", "slk"):
+        if schema in ("hsm", "slk") or inp.parts[1] == "arch":
             files_archive.append(str(inp))
+        if inp.exists() and inp.suffix in (".zarr",):
+            files_fs.append(str(inp))
         elif inp.is_dir() and inp.exists():
             files_fs += [
                 str(inp_file)
@@ -136,8 +132,6 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
                 for inp_file in inp.parent.rglob(inp.name)
                 if inp_file.suffix in extensions
             ]
-        elif inp.parts[1] == "arch":
-            files_archive.append(str(inp))
     return sorted(files_fs), sorted(files_archive)
 
 
@@ -178,8 +172,7 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
         dset = _open_datasets(files_fs, files_hsm)
     except Exception as error:
         error_header = (
-            "No data found, file(s) might be corrupted. "
-            "See err. message below:"
+            "No data found, file(s) might be corrupted. " "See err. message below:"
         )
         error_msg = str(error)
         if html:
