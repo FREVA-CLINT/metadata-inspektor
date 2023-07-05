@@ -147,10 +147,10 @@ def create_data(variable_name: str, size: int) -> xr.Dataset:
     lat_vec = xr.DataArray(lat, name="Lt", coords=coords, dims=("y", "x"))
     coords["time"] = np.array(
         [
-            np.datetime64("2020-01-01T00:00"),
-            np.datetime64("2020-01-01T12:00"),
-            np.datetime64("2020-01-02T00:00"),
-            np.datetime64("2020-01-02T12:00"),
+            np.datetime64("2020-01-01T00:00:00.000000000"),
+            np.datetime64("2020-01-01T12:00:00.000000000"),
+            np.datetime64("2020-01-02T00:00:00.000000000"),
+            np.datetime64("2020-01-02T12:00:00.000000000"),
         ]
     )
     dims = (4, size, size)
@@ -196,7 +196,7 @@ def zarr_file(data: xr.Dataset) -> Generator[Path, None, None]:
     """Save a zarr dataset to disk."""
     with TemporaryDirectory() as td:
         zarr_data = Path(td) / "precip.zarr"
-        data.to_zarr(zarr_data, mode="w")
+        data.to_zarr(zarr_data, mode="w", consolidated=True, compute=True)
         yield zarr_data
 
 

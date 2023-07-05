@@ -45,7 +45,6 @@ def test_netcdf(netcdf_files: Path, patch_file: Path) -> None:
     out, text_io = main([])
     assert out == "No files found"
     assert text_io == sys.stderr
-
     out, text_io = main([netcdf_files], html=False)
     assert "precip" in out
     assert text_io == sys.stdout

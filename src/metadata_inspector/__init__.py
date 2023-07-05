@@ -146,7 +146,7 @@ def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
         dsets.append(
             xr.open_mfdataset(
                 files_fs,
-                parallel=True,
+                parallel=False,
                 combine="by_coords",
                 use_cftime=True,
             )
