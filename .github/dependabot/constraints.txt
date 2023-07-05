@@ -5,4 +5,4 @@ hurry.filesize==0.9
 netCDF4==1.6.4
 requests==2.28.2
 xarray==2023.6.0
-zarr==2.14.2
+zarr==2.15.0
