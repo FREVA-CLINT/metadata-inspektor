@@ -111,7 +111,6 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
         ".grib",
         ".grib2",
         ".grb2",
-        ".zarr",
         ".h5",
         ".hdf5",
     )
@@ -120,8 +119,10 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
         if not path:
             path = schema
         inp = Path(path).expanduser().absolute()
-        if schema in ("hsm", "slk"):
+        if schema in ("hsm", "slk") or inp.parts[1] == "arch":
             files_archive.append(str(inp))
+        if inp.exists() and inp.suffix in (".zarr",):
+            files_fs.append(str(inp))
         elif inp.is_dir() and inp.exists():
             files_fs += [
                 str(inp_file)
@@ -136,8 +137,6 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
                 for inp_file in inp.parent.rglob(inp.name)
                 if inp_file.suffix in extensions
             ]
-        elif inp.parts[1] == "arch":
-            files_archive.append(str(inp))
     return sorted(files_fs), sorted(files_archive)
 
 
@@ -147,7 +146,7 @@ def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
         dsets.append(
             xr.open_mfdataset(
                 files_fs,
-                parallel=True,
+                parallel=False,
                 combine="by_coords",
                 use_cftime=True,
             )

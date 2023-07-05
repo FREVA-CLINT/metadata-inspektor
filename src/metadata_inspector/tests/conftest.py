@@ -147,10 +147,10 @@ def create_data(variable_name: str, size: int) -> xr.Dataset:
     lat_vec = xr.DataArray(lat, name="Lt", coords=coords, dims=("y", "x"))
     coords["time"] = np.array(
         [
-            np.datetime64("2020-01-01T00:00"),
-            np.datetime64("2020-01-01T12:00"),
-            np.datetime64("2020-01-02T00:00"),
-            np.datetime64("2020-01-02T12:00"),
+            np.datetime64("2020-01-01T00:00:00.000000000"),
+            np.datetime64("2020-01-01T12:00:00.000000000"),
+            np.datetime64("2020-01-02T00:00:00.000000000"),
+            np.datetime64("2020-01-02T12:00:00.000000000"),
         ]
     )
     dims = (4, size, size)
@@ -192,9 +192,16 @@ def data() -> Generator[xr.Dataset, None, None]:
 
 
 @pytest.fixture(scope="session")
-def netcdf_files(
-    data: xr.Dataset,
-) -> Generator[Path, None, None]:
+def zarr_file(data: xr.Dataset) -> Generator[Path, None, None]:
+    """Save a zarr dataset to disk."""
+    with TemporaryDirectory() as td:
+        zarr_data = Path(td) / "precip.zarr"
+        data.to_zarr(zarr_data, mode="w", consolidated=True, compute=True)
+        yield zarr_data
+
+
+@pytest.fixture(scope="session")
+def netcdf_files(data: xr.Dataset) -> Generator[Path, None, None]:
     """Save data with a blob to file."""
 
     with TemporaryDirectory() as td:
@@ -209,7 +216,9 @@ def netcdf_files(
                 / f"precip_{time1}-{time2}.nc"
             )
             out_file.parent.mkdir(exist_ok=True, parents=True)
-            data.sel(time=time).to_netcdf(out_file)
+            data.sel(time=time).to_netcdf(
+                out_file, mode="w", engine="h5netcdf"
+            )
         yield Path(td)
 
 

@@ -61,6 +61,7 @@ setup(
         "hurry.filesize",
         "h5netcdf",
         "netCDF4",
+        "numpy>=1.20.3",
         "requests",
         "xarray",
     ],
