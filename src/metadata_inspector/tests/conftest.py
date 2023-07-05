@@ -192,19 +192,17 @@ def data() -> Generator[xr.Dataset, None, None]:
 
 
 @pytest.fixture(scope="session")
-def zarr_file() -> Generator[Path, None, None]:
+def zarr_file(data: xr.Dataset) -> Generator[Path, None, None]:
     """Save a zarr dataset to disk."""
     with TemporaryDirectory() as td:
         zarr_data = Path(td) / "precip.zarr"
-        dset = create_data("precip", 100)
-        dset.to_zarr(zarr_data, mode="w")
+        data.to_zarr(zarr_data, mode="w")
         yield zarr_data
 
 
 @pytest.fixture(scope="session")
-def netcdf_files() -> Generator[Path, None, None]:
+def netcdf_files(data: xr.Dataset) -> Generator[Path, None, None]:
     """Save data with a blob to file."""
-    data = create_data("precip", 100)
 
     with TemporaryDirectory() as td:
         for time in (data.time[:2], data.time[2:]):
@@ -218,7 +216,9 @@ def netcdf_files() -> Generator[Path, None, None]:
                 / f"precip_{time1}-{time2}.nc"
             )
             out_file.parent.mkdir(exist_ok=True, parents=True)
-            data.sel(time=time).to_netcdf(out_file)
+            data.sel(time=time).to_netcdf(
+                out_file, mode="w", engine="h5netcdf"
+            )
         yield Path(td)
 
 
