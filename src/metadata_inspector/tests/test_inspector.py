@@ -22,6 +22,22 @@ def test_cli(capsys: pytest.CaptureFixture, patch_file: Path) -> None:
         cli(["--help"])
 
 
+def test_zarr(zarr_file: Path, patch_file: Path) -> None:
+    """Test reading a zarr file."""
+    from metadata_inspector import main
+
+    out, text_io = main([])
+    assert out == "No files found"
+    assert text_io == sys.stderr
+
+    out, text_io = main([zarr_file], html=False)
+    assert "precip" in out
+    assert text_io == sys.stdout
+
+    out, text_io = main([zarr_file], html=True)
+    assert "html" in out
+
+
 def test_netcdf(netcdf_files: Path, patch_file: Path) -> None:
     """Test reading netcdf files."""
     from metadata_inspector import main

@@ -192,6 +192,16 @@ def data() -> Generator[xr.Dataset, None, None]:
 
 
 @pytest.fixture(scope="session")
+def zarr_file() -> Generator[Path, None, None]:
+    """Save a zarr dataset to disk."""
+    with TemporaryDirectory() as td:
+        zarr_data = Path(td) / "precip.zarr"
+        dset = create_data("precip", 100)
+        dset.to_zarr(zarr_data, mode="w")
+        yield zarr_data
+
+
+@pytest.fixture(scope="session")
 def netcdf_files(
     data: xr.Dataset,
 ) -> Generator[Path, None, None]:
