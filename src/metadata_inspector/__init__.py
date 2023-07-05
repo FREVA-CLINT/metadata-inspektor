@@ -19,7 +19,9 @@ from ._slk import get_slk_metadata, login
 
 
 def _summarize_datavar(name: str, var: xr.DataArray, col_width: int) -> str:
-    out = [xr.core.formatting.summarize_variable(name, var.variable, col_width)]
+    out = [
+        xr.core.formatting.summarize_variable(name, var.variable, col_width)
+    ]
     if var.attrs:
         n_spaces = 0
         for k in out[0]:
@@ -41,7 +43,8 @@ def parse_args(args: Optional[list[str]] = None) -> tuple[list[Path], bool]:
     app = argp(
         prog="metadata-inspector",
         description=(
-            "Inspect meta data of a weather/climate datasets " "with help of xarray"
+            "Inspect meta data of a weather/climate datasets "
+            "with help of xarray"
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
@@ -77,7 +80,9 @@ def dataset_from_hsm(input_file: str) -> xr.Dataset:
     dset = xr.Dataset({}, attrs=attrs.pop("global"))
     for dim in attrs.pop("dims"):
         size = int(attrs[dim].pop("size"))
-        start, end = float(attrs[dim].pop("start")), float(attrs[dim].pop("end"))
+        start, end = float(attrs[dim].pop("start")), float(
+            attrs[dim].pop("end")
+        )
         vec = np.linspace(start, end, size)
         if dim == "time":
             vec = num2date(vec, attrs[dim]["units"], attrs[dim]["calendar"])
@@ -172,7 +177,8 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
         dset = _open_datasets(files_fs, files_hsm)
     except Exception as error:
         error_header = (
-            "No data found, file(s) might be corrupted. " "See err. message below:"
+            "No data found, file(s) might be corrupted. "
+            "See err. message below:"
         )
         error_msg = str(error)
         if html:
