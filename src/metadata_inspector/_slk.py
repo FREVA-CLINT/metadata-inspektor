@@ -17,6 +17,7 @@ import shutil
 import warnings
 from subprocess import run, PIPE, SubprocessError, CalledProcessError
 
+from hurry.filesize import alternative, size
 import requests
 
 MODULES_CMD_ENV = "MODULES_CMD"
@@ -56,19 +57,19 @@ def load_module() -> dict[str, str]:
     return _env
 
 
-def get_file_size(input_path: Path) -> str:
+def get_file_size(input_path: str) -> str:
     """Extract the size of an object on the HSM store.
 
     Parameters
     ----------
-    input_path: Path
+    input_path: str
         The path to the hsm ojbect
 
     Returns
     -------
     str: A string representation of the size of the ojbect
     """
-    command = ["slk", "list", str(input_path)]
+    command = ["slk_helpers", "size", input_path]
     try:
         res = run(
             command, env=load_module(), check=True, stdout=PIPE, stderr=PIPE
@@ -79,14 +80,10 @@ def get_file_size(input_path: Path) -> str:
         )  # pragma: no cover
         return "unkown"  # pragma: no cover
     try:
-        out = [
-            line
-            for line in res.stdout.decode().split("\n")
-            if input_path.name in line
-        ]
-        return out[0].split()[3]
-    except IndexError:  # pragma: no cover
+        fsize = int(res.stdout.decode().strip())
+    except TypeError:  # pragma: no cover
         return "unkown"  # pragma: no cover
+    return size(fsize, system=alternative)
 
 
 def get_slk_metadata(input_path: str) -> dict[str, dict[str, str]]:
@@ -135,7 +132,7 @@ def get_slk_metadata(input_path: str) -> dict[str, dict[str, str]]:
             data[main_key][current_key] = value.strip()
         elif line:
             data[main_key][current_key] += line.strip()
-    data["netcdf"]["file_size"] = get_file_size(Path(input_path))
+    data["netcdf"]["file_size"] = get_file_size(input_path)
     return data
 
 
