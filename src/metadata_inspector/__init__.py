@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from functools import partial
 from pathlib import Path
+import json
 import warnings
 import sys
 from typing import Optional, TextIO
@@ -12,7 +13,6 @@ from dask import array as dask_array
 from hurry.filesize import alternative, size
 import numpy as np
 import xarray as xr
-import yaml
 
 from ._version import __version__
 from ._slk import get_slk_metadata, login
@@ -72,13 +72,14 @@ def parse_args(args: Optional[list[str]] = None) -> tuple[list[Path], bool]:
 
 def dataset_from_hsm(input_file: str) -> xr.Dataset:
     """Create a dataset view from attributes."""
-
-    attrs: dict[str, dict[str, str]] = (
-        yaml.safe_load(get_slk_metadata(input_file)) or {}
-    ).get("Keywords", {})
-
-    dset = xr.Dataset({}, attrs=attrs.pop("global"))
-    for dim in attrs.pop("dims"):
+    global_attrs: dict[str, dict[str, str]] = get_slk_metadata(input_file)
+    attrs = json.loads(global_attrs.pop("document", {}).pop("Keywords", "{}"))
+    nc_attrs = {}
+    for key in ("netcdf", "netcdf_header"):
+        for k, value in global_attrs.get(key, {}).items():
+            nc_attrs[k] = value
+    dset = xr.Dataset({}, attrs=attrs.pop("global", {}) or nc_attrs)
+    for dim in attrs.pop("dims", []):
         size = int(attrs[dim].pop("size"))
         start, end = float(attrs[dim].pop("start")), float(
             attrs[dim].pop("end")
@@ -87,7 +88,7 @@ def dataset_from_hsm(input_file: str) -> xr.Dataset:
         if dim == "time":
             vec = num2date(vec, attrs[dim]["units"], attrs[dim]["calendar"])
         dset[dim] = xr.DataArray(vec, name=dim, dims=(dim,), attrs=attrs[dim])
-    for data_var in attrs.pop("data_vars"):
+    for data_var in attrs.pop("data_vars", []):
         dims = attrs[data_var].pop("dims")
         sizes = [dset[d].size for d in dims]
         dset[data_var] = xr.DataArray(
@@ -169,7 +170,7 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
     html: bool, default: True
         If true a representation suitable for html is displayed.
     """
-
+    xr.core.formatting.EMPTY_REPR = "    *not enough information for display*"
     files_fs, files_hsm = _get_files(input_files)
     if not files_fs and not files_hsm:
         return "No files found", sys.stderr
@@ -192,7 +193,10 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
         else:
             msg = f"{error_header}\n{error_msg}"
             return msg, sys.stderr
-    fsize = size(dset.nbytes, system=alternative)
+    if dset.nbytes == 0:
+        fsize = dset.attrs.pop("file_size", "unkown")
+    else:
+        fsize = size(dset.nbytes, system=alternative)
     if html:
         out_str = xr.core.formatting_html.dataset_repr(dset)
     else:
@@ -208,7 +212,7 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
         )
         out_str = xr.core.formatting.dataset_repr(dset)
     replace_str = (
-        ("xarray.Dataset", f"Dataset (byte-size: {fsize})"),
+        ("xarray.Dataset", f"Dataset (dataset-size: {fsize})"),
         (
             "<svg class='icon xr-icon-file-text2'>",
             "<i class='fa fa-file-text-o'>",
