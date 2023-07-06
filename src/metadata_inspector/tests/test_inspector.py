@@ -87,3 +87,4 @@ def test_hsm_without_key(patch_file: Path) -> None:
     from metadata_inspector import main
 
     out, text_io = main([Path("/arch/foo/bar.nc")])
+    assert "ua" in out

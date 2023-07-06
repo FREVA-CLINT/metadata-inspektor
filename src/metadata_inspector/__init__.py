@@ -72,7 +72,6 @@ def parse_args(args: Optional[list[str]] = None) -> tuple[list[Path], bool]:
 
 def dataset_from_hsm(input_file: str) -> xr.Dataset:
     """Create a dataset view from attributes."""
-    print(input_file)
     global_attrs: dict[str, dict[str, str]] = get_slk_metadata(input_file)
     attrs = json.loads(global_attrs.pop("document", {}).pop("Keywords", "{}"))
     nc_attrs = {}
@@ -171,7 +170,7 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
     html: bool, default: True
         If true a representation suitable for html is displayed.
     """
-
+    xr.core.formatting.EMPTY_REPR = "    *not enough information for display*"
     files_fs, files_hsm = _get_files(input_files)
     if not files_fs and not files_hsm:
         return "No files found", sys.stderr
