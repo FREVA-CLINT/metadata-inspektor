@@ -56,12 +56,45 @@ def load_module() -> dict[str, str]:
     return _env
 
 
+def get_file_size(input_path: Path) -> str:
+    """Extract the size of an object on the HSM store.
+
+    Parameters
+    ----------
+    input_path: Path
+        The path to the hsm ojbect
+
+    Returns
+    -------
+    str: A string representation of the size of the ojbect
+    """
+    command = ["slk", "list", str(input_path)]
+    try:
+        res = run(
+            command, env=load_module(), check=True, stdout=PIPE, stderr=PIPE
+        )
+    except SubprocessError as error:  # pragma: no cover
+        warnings.warn(
+            f"Error: could not get meta-data: {error}"
+        )  # pragma: no cover
+        return "unkown"  # pragma: no cover
+    try:
+        out = [
+            line
+            for line in res.stdout.decode().split("\n")
+            if input_path.name in line
+        ]
+        return out[0].split()[3]
+    except IndexError:  # pragma: no cover
+        return "unkown"  # pragma: no cover
+
+
 def get_slk_metadata(input_path: str) -> dict[str, dict[str, str]]:
     """Extract dataset metdata from path in the hsm.
 
     Parameters
     ----------
-    input_path: Path
+    input_path: str
         The hsm path the metdata is extracted from
 
 
@@ -90,6 +123,7 @@ def get_slk_metadata(input_path: str) -> dict[str, dict[str, str]]:
     # Since yaml needs could not handle this we have to add the ':' to the
     # keys manually.
     data: dict[str, dict[str, str]] = {}
+    data.setdefault("netcdf", {})
     for line in res.stdout.decode().split("\n"):
         if line.startswith("netcdf") or line.startswith("document"):
             main_key = line.strip()
@@ -101,6 +135,7 @@ def get_slk_metadata(input_path: str) -> dict[str, dict[str, str]]:
             data[main_key][current_key] = value.strip()
         elif line:
             data[main_key][current_key] += line.strip()
+    data["netcdf"]["file_size"] = get_file_size(Path(input_path))
     return data
 
 

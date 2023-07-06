@@ -223,7 +223,7 @@ def run(command: list[str], **kwargs: Any) -> SubProcess:
     """Patch the subprocess.run command."""
 
     main_command, sub_cmd = command[0:2]
-    if main_command.startswith("slk_helpers"):
+    if main_command.startswith("slk"):
         suffix = Path(command[-1]).suffix
         if sub_cmd == "metadata":
             if suffix == ".tar":
@@ -232,7 +232,11 @@ def run(command: list[str], **kwargs: Any) -> SubProcess:
                 cmd += "\n   Version: ae7677769b0a757248659ddbbb83f224"
             else:
                 cmd = global_meta_data
-            return SubProcess([cmd])
+        else:
+            file_n = Path(command[-1]).name
+            cmd = f"-rw-r--r--- k204230 bm0146  15M 16 Feb 2023 22:15 {file_n}"
+        return SubProcess([cmd])
+
     return SubProcess(command, is_fake=False)
 
 

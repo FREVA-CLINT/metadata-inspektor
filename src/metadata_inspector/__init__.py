@@ -194,7 +194,7 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
             msg = f"{error_header}\n{error_msg}"
             return msg, sys.stderr
     if dset.nbytes == 0:
-        fsize = "unkown"
+        fsize = dset.attrs.pop("file_size", "unkown")
     else:
         fsize = size(dset.nbytes, system=alternative)
     if html:
@@ -212,7 +212,7 @@ def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
         )
         out_str = xr.core.formatting.dataset_repr(dset)
     replace_str = (
-        ("xarray.Dataset", f"Dataset (byte-size: {fsize})"),
+        ("xarray.Dataset", f"Dataset (dataset-size: {fsize})"),
         (
             "<svg class='icon xr-icon-file-text2'>",
             "<i class='fa fa-file-text-o'>",
