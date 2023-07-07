@@ -12,10 +12,9 @@ from getpass import getuser
 import json
 from pathlib import Path
 import os
-import re
 import shutil
 import warnings
-from subprocess import run, PIPE, SubprocessError, CalledProcessError
+from subprocess import run, PIPE, SubprocessError
 
 from hurry.filesize import alternative, size
 import requests
