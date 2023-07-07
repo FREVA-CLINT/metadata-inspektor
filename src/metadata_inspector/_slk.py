@@ -12,49 +12,30 @@ from getpass import getuser
 import json
 from pathlib import Path
 import os
-import re
 import shutil
 import warnings
-from subprocess import run, PIPE, SubprocessError, CalledProcessError
+from subprocess import run, PIPE, SubprocessError
 
 from hurry.filesize import alternative, size
 import requests
 
-MODULES_CMD_ENV = "MODULES_CMD"
+SLK_HELPERS_BIN = "/sw/spack-levante/slk_helpers-1.9.3-5hmec4/bin"
+SLK_BIN = "/sw/spack-levante/slk-3.3.91-wuylnb/bin/slk"
+JDK_BIN = "/sw/spack-levante/openjdk-17.0.0_35-k5o6dr/bin"
+JAVA_HOME = "/sw/spack-levante/openjdk-17.0.0_35-k5o6dr"
 SLK = "slk"
 
 SESSION_PATH = Path("~").expanduser() / ".slk" / "config.json"
 
 
-def load_module() -> dict[str, str]:
+def get_env() -> dict[str, str]:
     """Load the slk module."""
-    module_path = os.environ.get(
-        MODULES_CMD_ENV, "/usr/share/Modules/libexec/modulecmd.tcl"
-    )
+    env: dict[str, str] = os.environ.copy()
     if shutil.which("slk") is not None:
-        return os.environ.copy()
-    _env: dict[str, str] = {}
-    try:
-        res = (
-            run(
-                [module_path, "python", "load", SLK],
-                check=True,
-                stdout=PIPE,
-                stderr=PIPE,
-            )
-            .stdout.decode()
-            .split("\n")
-        )
-    except (FileNotFoundError, CalledProcessError) as error:
-        warnings.warn(f"Could not load {SLK}: {error}")
-        return _env
-    for line in res:
-        if "=" in line:
-            key, _, value = line.partition("=")
-            new_key = (re.findall(r"\['([^']*)", key.strip()) or [""])[0]
-            if new_key.strip():
-                _env[new_key.strip()] = value.strip().replace("'", "")
-    return _env
+        return env  # pragma: no cover
+    env["PATH"] = f"{SLK_BIN}:{SLK_HELPERS_BIN}:{JDK_BIN}:{env['PATH']}"
+    env["JAVA_HOME"] = JAVA_HOME
+    return env
 
 
 def get_file_size(input_path: str) -> str:
@@ -71,9 +52,7 @@ def get_file_size(input_path: str) -> str:
     """
     command = ["slk_helpers", "size", input_path]
     try:
-        res = run(
-            command, env=load_module(), check=True, stdout=PIPE, stderr=PIPE
-        )
+        res = run(command, env=get_env(), check=True, stdout=PIPE, stderr=PIPE)
     except SubprocessError as error:  # pragma: no cover
         warnings.warn(
             f"Error: could not get meta-data: {error}"
@@ -101,9 +80,7 @@ def get_slk_metadata(input_path: str) -> dict[str, dict[str, str]]:
     """
     command = ["slk_helpers", "metadata", input_path]
     try:
-        res = run(
-            command, env=load_module(), check=True, stdout=PIPE, stderr=PIPE
-        )
+        res = run(command, env=get_env(), check=True, stdout=PIPE, stderr=PIPE)
     except SubprocessError as error:  # pragma: no cover
         warnings.warn(
             f"Error: could not get meta-data: {error}"
@@ -147,8 +124,8 @@ def get_expiration_date() -> datetime:
             return datetime.strptime(date, fmt)
         except FileNotFoundError:  # pragma: no cover
             break  # pragma: no cover
-        except ValueError:
-            pass
+        except ValueError:  # pragma: no cover
+            pass  # pragma: no cover
     return now
 
 
@@ -192,4 +169,4 @@ def login() -> None:
         _login_via_request(passwd)
     elif diff <= 0:
         print("Your session has expired, login to slk")
-        run(["slk", "login"], shell=False, check=True, env=load_module())
+        run(["slk", "login"], shell=False, check=True, env=get_env())
