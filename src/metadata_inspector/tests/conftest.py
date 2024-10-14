@@ -19,6 +19,7 @@ import xarray as xr
 import threading
 import http.server
 import socketserver
+import metadata_inspector._slk  # noqa
 
 global_meta_data = """
 netcdf
@@ -227,21 +228,24 @@ class RequestMock:
 def run(command: list[str], **kwargs: Any) -> SubProcess:
     """Patch the subprocess.run command."""
 
-    main_command, sub_cmd = command[0:2]
-    if main_command.startswith("slk_helpers"):
-        suffix = Path(command[-1]).suffix
+    main_command = command[0]
+    if main_command == "slk_helpers":
+        sub_cmd = command[1]
         if sub_cmd == "metadata":
-            if suffix == ".tar":
-                cmd = "document\n"
-                cmd += "   Keywords: " + json.dumps(meta_data)
-                cmd += "\n   Version: ae7677769b0a757248659ddbbb83f224"
+            input_path = command[2]
+            if input_path.endswith(".tar"):
+                cmd_output = "document\n"
+                cmd_output += "   Keywords: " + json.dumps(meta_data)
+                cmd_output += "\n   Version: ae7677769b0a757248659ddbbb83f224"
             else:
-                cmd = global_meta_data
+                cmd_output = global_meta_data
+        elif sub_cmd == "size":
+            cmd_output = "1535041\n"
         else:
-            cmd = "1535041\n"
-        return SubProcess([cmd])
-
-    return SubProcess(command, is_fake=False)
+            cmd_output = ""
+        return SubProcess([cmd_output])
+    else:
+        return SubProcess(command, is_fake=False)
 
 
 def create_data(variable_name: str, size: int) -> xr.Dataset:
@@ -302,17 +306,14 @@ def slk_bin() -> Generator[Path, None, None]:
 def patch_file(session_path: Path) -> Generator[Path, None, None]:
     req = {"data": {"attributes": {"session_key": "secret"}}}
     post = partial(RequestMock.post, out=req)
-    old_run = subprocess.run
-    subprocess.run = run  # type: ignore
     env = os.environ.copy()
     env["LC_TELEPHONE"] = base64.b64encode("foo".encode()).decode()
     with mock.patch.dict(os.environ, env, clear=True):
         with mock.patch("metadata_inspector._slk.SESSION_PATH", session_path):
             with mock.patch("requests.post", post):
                 with mock.patch("requests.get", RequestMock.get):
-                    with mock.patch("subprocess.run", run):
+                    with mock.patch("metadata_inspector._slk.run", run):
                         yield session_path
-                        subprocess.run = old_run
 
 
 @pytest.fixture(scope="session")
