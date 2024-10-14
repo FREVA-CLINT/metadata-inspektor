@@ -4,7 +4,6 @@ Until we do have access to the rest api we'll have to rely on the command line
 tools.
 """
 
-
 from __future__ import annotations
 import base64
 from datetime import datetime, timedelta

@@ -1,4 +1,5 @@
 """Tests for the command line interface."""
+
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 import sys
@@ -88,3 +89,11 @@ def test_hsm_without_key(patch_file: Path) -> None:
 
     out, text_io = main([Path("/arch/foo/bar.nc")])
     assert "ua" in out
+
+
+def test_zarr_http(patch_file: Path, https_server: str) -> None:
+    from metadata_inspector import main
+
+    zarr_url = f"{https_server}precip.zarr"
+    out, text_io = main([zarr_url], html=False)
+    assert "precip" in out

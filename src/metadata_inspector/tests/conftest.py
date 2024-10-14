@@ -1,4 +1,5 @@
 """pytest definitions to run the unittests."""
+
 from __future__ import annotations
 import base64
 from functools import partial
@@ -14,6 +15,10 @@ import mock
 import numpy as np
 import pandas as pd
 import xarray as xr
+
+import threading
+import http.server
+import socketserver
 
 global_meta_data = """
 netcdf
@@ -352,3 +357,31 @@ def netcdf_files(data: xr.Dataset) -> Generator[Path, None, None]:
 def session_path() -> Generator[Path, None, None]:
     with TemporaryDirectory() as temp_dir:
         yield Path(temp_dir) / "slk.json"
+
+
+@pytest.fixture(scope="session")
+def https_server() -> Generator[str, None, None]:
+    temp_dir = TemporaryDirectory()
+    zarr_dir = Path(temp_dir.name) / "zarr_data"
+    zarr_data = zarr_dir / "precip.zarr"
+    coords = {
+        "time": pd.date_range("2020-01-01", periods=10),
+        "lat": np.linspace(-90, 90, 180),
+        "lon": np.linspace(0, 360, 360),
+    }
+    data = np.random.rand(10, 180, 360)
+    dset = xr.Dataset(
+        {"precip": (["time", "lat", "lon"], data)}, coords=coords
+    )
+    dset.to_zarr(zarr_data, mode="w", consolidated=True)
+    os.chdir(temp_dir.name)
+    handler = http.server.SimpleHTTPRequestHandler
+    httpd = socketserver.TCPServer(("localhost", 8000), handler)
+    print("start server")
+    server_thread = threading.Thread(target=httpd.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
+    yield "http://localhost:8000/zarr_data/"
+    print("shutdown server")
+    httpd.shutdown()
+    temp_dir.cleanup()
