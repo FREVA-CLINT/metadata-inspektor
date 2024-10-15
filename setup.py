@@ -64,6 +64,8 @@ setup(
         "numpy>=1.20.3",
         "requests",
         "xarray",
+        "zarr",
+        "aiohttp"
     ],
     extras_require={
         "tests": [

@@ -1,4 +1,5 @@
 """Metadata inspector."""
+
 from __future__ import annotations
 import argparse
 from functools import partial
@@ -6,14 +7,14 @@ from pathlib import Path
 import json
 import warnings
 import sys
-from typing import Optional, TextIO
+from typing import Optional, TextIO, Union
 
 from cftime import num2date
 from dask import array as dask_array
 from hurry.filesize import alternative, size
 import numpy as np
 import xarray as xr
-
+from urllib.parse import urlparse
 from ._version import __version__
 from ._slk import get_slk_metadata, login
 
@@ -36,7 +37,9 @@ def _summarize_datavar(name: str, var: xr.DataArray, col_width: int) -> str:
     return "\n".join(out)
 
 
-def parse_args(args: Optional[list[str]] = None) -> tuple[list[Path], bool]:
+def parse_args(
+    args: Optional[list[str]] = None,
+) -> tuple[list[Union[str, Path]], bool]:
     """Construct command line argument parser."""
 
     argp = argparse.ArgumentParser
@@ -51,7 +54,7 @@ def parse_args(args: Optional[list[str]] = None) -> tuple[list[Path], bool]:
     app.add_argument(
         "input",
         metavar="input",
-        type=Path,
+        type=str,
         nargs="+",
         help="Input files that will be processed",
     )
@@ -100,7 +103,7 @@ def dataset_from_hsm(input_file: str) -> xr.Dataset:
     return dset
 
 
-def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
+def _get_files(input_: list[Union[str, Path]]) -> tuple[list[str], list[str]]:
     """Get all files from given input"""
 
     files_fs: list[str] = []
@@ -120,6 +123,9 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
         if not path:
             path = schema
         inp = Path(path).expanduser().absolute()
+        parsed_url = urlparse(str(inp_file))
+        if parsed_url.scheme in ("http", "https", "s3", "gcs"):
+            files_fs.append(str(inp_file))
         if schema in ("hsm", "slk") or inp.parts[1] == "arch":
             files_archive.append(str(inp))
         if inp.exists() and inp.suffix in (".zarr",):
@@ -144,14 +150,22 @@ def _get_files(input_: list[Path]) -> tuple[list[str], list[str]]:
 def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
     dsets: list[xr.Dataset] = []
     if files_fs:
-        dsets.append(
-            xr.open_mfdataset(
-                files_fs,
-                parallel=False,
-                combine="by_coords",
-                use_cftime=True,
+        if files_fs[0].endswith(".zarr") or urlparse(files_fs[0]).scheme in (
+            "http",
+            "https",
+            "s3",
+            "gcs",
+        ):
+            dsets.append(xr.open_zarr(files_fs[0], consolidated=False))
+        else:
+            dsets.append(
+                xr.open_mfdataset(
+                    files_fs,
+                    parallel=False,
+                    combine="by_coords",
+                    use_cftime=True,
+                )
             )
-        )
     if files_hsm:
         login()
         for inp_file in files_hsm:
@@ -159,7 +173,9 @@ def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
     return xr.merge(dsets)
 
 
-def main(input_files: list[Path], html: bool = False) -> tuple[str, TextIO]:
+def main(
+    input_files: list[Union[str, Path]], html: bool = False
+) -> tuple[str, TextIO]:
     """Print the representation of a dataset.
 
     Parameters
