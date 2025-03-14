@@ -17,6 +17,7 @@ import xarray as xr
 from urllib.parse import urlparse
 from ._version import __version__
 from ._slk import get_slk_metadata, login
+import zarr
 
 
 def _summarize_datavar(name: str, var: xr.DataArray, col_width: int) -> str:
@@ -147,25 +148,36 @@ def _get_files(input_: list[Union[str, Path]]) -> tuple[list[str], list[str]]:
     return sorted(files_fs), sorted(files_archive)
 
 
+def _get_xr_engine(file_path: str) -> Optional[str]:
+    """Get the engine, to open the xarray dataset."""
+    try:
+        with xr.open_dataset(file_path, engine="h5netcdf"):
+            return "h5netcdf"
+    except Exception:
+        pass
+    try:
+        _ = zarr.open(file_path, mode="r")
+        return "zarr"
+    except Exception:
+        pass
+    return None
+
+
 def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
+    """Open a dataset with xarray."""
     dsets: list[xr.Dataset] = []
     if files_fs:
-        if files_fs[0].endswith(".zarr") or urlparse(files_fs[0]).scheme in (
-            "http",
-            "https",
-            "s3",
-            "gcs",
-        ):
-            dsets.append(xr.open_zarr(files_fs[0], consolidated=False))
-        else:
-            dsets.append(
-                xr.open_mfdataset(
-                    files_fs,
-                    parallel=False,
-                    combine="by_coords",
-                    use_cftime=True,
-                )
+        dsets.append(
+            xr.open_dataset(
+                files_fs[0],
+                decode_cf=False,
+                use_cftime=False,
+                chunks="auto",
+                cache=False,
+                decode_coords=False,
+                engine=_get_xr_engine(files_fs[0]),
             )
+        )
     if files_hsm:
         login()
         for inp_file in files_hsm:

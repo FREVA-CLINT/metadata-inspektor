@@ -386,3 +386,30 @@ def https_server() -> Generator[str, None, None]:
     print("shutdown server")
     httpd.shutdown()
     temp_dir.cleanup()
+
+
+@pytest.fixture(scope="session")
+def netcdf_http_server() -> Generator[str, None, None]:
+    """Creates and serves NetCDF files over HTTP for testing."""
+    temp_dir = TemporaryDirectory()
+    netcdf_dir = Path(temp_dir.name) / "netcdf_data"
+    netcdf_dir.mkdir(parents=True, exist_ok=True)
+
+    dset = create_data("precip", size=50)
+    netcdf_file = netcdf_dir / "precip_data.nc"
+    dset.to_netcdf(netcdf_file, mode="w", engine="h5netcdf")
+
+    os.chdir(temp_dir.name)
+    handler = http.server.SimpleHTTPRequestHandler
+    httpd = socketserver.TCPServer(("localhost", 8001), handler)
+
+    print("Starting HTTP server for NetCDF files")
+    server_thread = threading.Thread(target=httpd.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
+
+    yield "http://localhost:8001/netcdf_data/"
+
+    print("Shutting down NetCDF HTTP server")
+    httpd.shutdown()
+    temp_dir.cleanup()

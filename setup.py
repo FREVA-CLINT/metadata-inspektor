@@ -65,7 +65,7 @@ setup(
         "requests",
         "xarray",
         "zarr",
-        "aiohttp"
+        "aiohttp",
     ],
     extras_require={
         "tests": [
