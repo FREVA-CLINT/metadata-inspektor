@@ -167,22 +167,23 @@ def _open_datasets(files_fs: list[str], files_hsm: list[str]) -> xr.Dataset:
     """Open a dataset with xarray."""
     dsets: list[xr.Dataset] = []
     if files_fs:
-        dsets.append(
-            xr.open_dataset(
-                files_fs[0],
-                decode_cf=False,
-                use_cftime=False,
-                chunks="auto",
-                cache=False,
-                decode_coords=False,
-                engine=_get_xr_engine(files_fs[0]),
+        for file_fs in files_fs:
+            dsets.append(
+                xr.open_dataset(
+                    file_fs,
+                    decode_cf=False,
+                    use_cftime=False,
+                    chunks="auto",
+                    cache=False,
+                    decode_coords=False,
+                    engine=_get_xr_engine(file_fs),
+                )
             )
-        )
     if files_hsm:
         login()
         for inp_file in files_hsm:
             dsets.append(dataset_from_hsm(inp_file))
-    return xr.merge(dsets)
+    return xr.merge(dsets, compat="no_conflicts")
 
 
 def main(
