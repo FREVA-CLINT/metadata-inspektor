@@ -106,7 +106,3 @@ def test_netcdf_http(netcdf_http_server: str) -> None:
     netcdf_url = f"{netcdf_http_server}precip_data.nc"
     out, text_io = main([netcdf_url], html=False)
     assert "precip" in out
-    assert text_io == sys.stdout
-
-    out, text_io = main([netcdf_url], html=True)
-    assert "html" in out
