@@ -54,6 +54,14 @@ def test_netcdf(netcdf_files: Path, patch_file: Path) -> None:
     assert "html" in out
 
 
+def test_grib(grib_file: str, patch_file: Path) -> None:
+    """Test to get the correct engine for .grb files."""
+    from metadata_inspector import _get_xr_engine
+
+    engine = _get_xr_engine(grib_file)
+    assert engine == "cfgrib"
+
+
 def test_login(patch_file: Path) -> None:
     """Test logging in to the hsm archive."""
     from metadata_inspector._slk import login

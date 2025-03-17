@@ -66,6 +66,7 @@ setup(
         "xarray",
         "zarr",
         "aiohttp",
+        "cfgrib",
     ],
     extras_require={
         "tests": [

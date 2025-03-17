@@ -151,13 +151,18 @@ def _get_files(input_: list[Union[str, Path]]) -> tuple[list[str], list[str]]:
 def _get_xr_engine(file_path: str) -> Optional[str]:
     """Get the engine, to open the xarray dataset."""
     try:
+        _ = zarr.open(file_path, mode="r")
+        return "zarr"
+    except Exception:
+        pass
+    try:
         with xr.open_dataset(file_path, engine="h5netcdf"):
             return "h5netcdf"
     except Exception:
         pass
     try:
-        _ = zarr.open(file_path, mode="r")
-        return "zarr"
+        with xr.open_dataset(file_path, engine="cfgrib"):
+            return "cfgrib"
     except Exception:
         pass
     return None

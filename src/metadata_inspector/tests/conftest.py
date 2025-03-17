@@ -355,6 +355,28 @@ def netcdf_files(data: xr.Dataset) -> Generator[Path, None, None]:
 
 
 @pytest.fixture(scope="session")
+def grib_file(data: xr.Dataset) -> Generator[str, None, None]:
+    """Save data with a blob to grb file."""
+    from cfgrib.xarray_to_grib import to_grib  # type: ignore
+
+    grib_keys = {
+        "gridType": "regular_ll",
+        "Ni": data.sizes["x"],
+        "Nj": data.sizes["y"],
+        "latitudeOfFirstGridPointInDegrees": data["y"].values[0],
+        "longitudeOfFirstGridPointInDegrees": data["x"].values[0],
+        "latitudeOfLastGridPointInDegrees": data["y"].values[-1],
+        "longitudeOfLastGridPointInDegrees": data["x"].values[-1],
+        "jScansPositively": 1,
+    }
+    with TemporaryDirectory() as td:
+        out_file = Path(td) / "the_project" / "test1" / "precip" / "precip.grb"
+        out_file.parent.mkdir(exist_ok=True, parents=True)
+        to_grib(data, out_file, grib_keys=grib_keys)
+        yield str(out_file)
+
+
+@pytest.fixture(scope="session")
 def session_path() -> Generator[Path, None, None]:
     with TemporaryDirectory() as temp_dir:
         yield Path(temp_dir) / "slk.json"
