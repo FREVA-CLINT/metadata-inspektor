@@ -64,7 +64,7 @@ setup(
         "numpy>=1.20.3",
         "requests",
         "xarray",
-        "zarr>=3",
+        "zarr",        
         "aiohttp",
         "cfgrib",
     ],
