@@ -54,6 +54,14 @@ def test_netcdf(netcdf_files: Path, patch_file: Path) -> None:
     assert "html" in out
 
 
+def test_grib(grib_file: str, patch_file: Path) -> None:
+    """Test to get the correct engine for .grb files."""
+    from metadata_inspector import _get_xr_engine
+
+    engine = _get_xr_engine(grib_file)
+    assert engine == "cfgrib"
+
+
 def test_login(patch_file: Path) -> None:
     """Test logging in to the hsm archive."""
     from metadata_inspector._slk import login
@@ -96,4 +104,13 @@ def test_zarr_http(patch_file: Path, https_server: str) -> None:
 
     zarr_url = f"{https_server}precip.zarr"
     out, text_io = main([zarr_url], html=False)
+    assert "precip" in out
+
+
+def test_netcdf_http(netcdf_http_server: str) -> None:
+    """Test reading NetCDF file over HTTP."""
+    from metadata_inspector import main
+
+    netcdf_url = f"{netcdf_http_server}precip_data.nc"
+    out, text_io = main([netcdf_url], html=False)
     assert "precip" in out
