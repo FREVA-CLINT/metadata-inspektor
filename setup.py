@@ -28,14 +28,14 @@ setup(
     author="Martin Bergemann",
     author_email="bergemann@dkrz.de",
     maintainer="Martin Bergemann",
-    url="https://github.com/FREVA-CLINT/metadata-inspektor.git",
+    url="https://github.com/freva-org/metadata-inspektor.git",
     description="Inspect metadata of weather/climate datasets",
     long_description=read("README.md"),
     license="BSD-3-Clause",
     long_description_content_type="text/markdown",
     include_package_data=True,
     project_urls={
-        "Source": "https://github.com/FREVA-CLINT/metadata-inspektor",
+        "Source": "https://github.com/freva-org/metadata-inspektor",
     },
     classifiers=[
         "Development Status :: 4 - Beta",
